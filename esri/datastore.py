@@ -51,6 +51,7 @@ class GDBBrowser(DataStoreBrowser):
     def __init__(self, path, datatypes=None):
         DataStoreBrowser.__init__(self, path)
         self.fclist = GDBBrowser._fclist(self)
+        self.tablelist = GDBBrowser._tablelist(self)
         self.codeddomainlist = GDBBrowser._codeddomainlist(self)
 
     def _codeddomainlist(self, shortname=None):
@@ -110,6 +111,13 @@ class GDBBrowser(DataStoreBrowser):
             for fc in arcpy.ListFeatureClasses():
                 featureclasslist.append(join(join(self.path, ds), fc))
         return featureclasslist
+
+    def _tablelist(self):
+        tablelist = []
+        arcpy.env.workspace = self.path
+        for table in arcpy.ListTables():
+            tablelist.append(join(self.path, table))
+        return tablelist
 
     def _compare_domains(self, datastorecomp):
         print "*" * 23
