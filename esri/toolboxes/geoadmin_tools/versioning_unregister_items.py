@@ -2,6 +2,8 @@ import arcpy
 import sys
 import os
 import traceback
+import json
+import ast
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 from esri import datastore
@@ -13,10 +15,10 @@ from esri import datastore
 
 
 
-class VersioningHelperUnregisterItems(object):
+class VersioningUnregisterItems(object):
     def __init__(self):
         """Define the tool (tool name is the name of the class)."""
-        self.label = "Versioning Helper - Unregister Items"
+        self.label = "Versioning - Unregister Items"
         self.description = ""
         self.category="GeoAdmin Tools"
         self.canRunInBackground = False
@@ -32,27 +34,37 @@ class VersioningHelperUnregisterItems(object):
         direction="Input")
 
         param1 = arcpy.Parameter(
-        displayName="Unregister Tables Only",
+        displayName="Unregister Tables",
         name="unregister_tables",
         datatype="Boolean",
         parameterType="Optional",
         direction="Input")
 
         param2 = arcpy.Parameter(
-        displayName="Unregister Feature Classes Only",
+        displayName="Unregister Feature Classes",
         name="unregister_fcs",
         datatype="Boolean",
         parameterType="Optional",
         direction="Input")
 
         param3 = arcpy.Parameter(
-        displayName="Output Features",
-        name="out_features",
+        displayName="JSON List To Unregister As Versioned",
+        name="json_versioned_items",
+        datatype="DETextfile",
+        parameterType="Optional",
+        direction="Input")
+
+        param4 = arcpy.Parameter(
+        displayName="No Output",
+        name="output_list",
         datatype="String",
         parameterType="Derived",
         direction="Output")
 
-        params = [param0, param1, param2, param3]
+        param1.value = True
+        param2.value = True
+
+        params = [param0, param1, param2, param3, param4]
         return params
 
 
@@ -80,26 +92,69 @@ class VersioningHelperUnregisterItems(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         
-        res = self.run_tool(parameters[0].valueAsText, parameters[1].value, parameters[2].value)
+        res = self.run_tool(parameters[0].valueAsText, parameters[1].value, parameters[2].value, parameters[3].valueAsText)
         '''
             It seems that the SetParameterAsText method generates a arcpy.Result object.
             I would like to instead return a json string...
         '''
-        arcpy.SetParameterAsText(3, res)
+        #arcpy.SetParameterAsText(4, res)
         return
 
 
-    def get_parameter(self, parameter, check_dataset, check_fc):
-        '''
-            not implemented
-        '''
-        parameter
 
-
-    def run_tool(self, dbconn, unreg_tables_only, unreg_fcs_only):
+    def run_tool(self, dbconn, unreg_tables_only, unreg_fcs_only, json_versioned_items):
         '''
             Keeps execute method clean
         '''
+        if json_versioned_items == "":
+            with open(json_versioned_items) as readme:
+                d = json.loads(readme.read())
+            raw_list = ast.literal_eval(d)
+        else:
+            raw_list = self.control_flow(dbconn, unreg_tables_only, unreg_fcs_only)
+        unregister_list = self.organize_unregister_plan(dbconn, raw_list)
+        self.unregister_items(unregister_list)
+        return
+
+
+    def unregister_items(self, unregister_list):
+        for i in unregister_list:
+            try:
+                #Very important here to pass third parameter as "" empty
+                arcpy.UnregisterAsVersioned_management(i, "KEEP_EDIT", "")
+                arcpy.AddMessage("Unregistered -- " + str(i))
+            except:
+                arcpy.AddMessage(i)
+                arcpy.AddMessage("--")
+                arcpy.AddMessage(traceback.format_exc())
+
+        
+
+
+    def organize_unregister_plan(self, dbconn, versioned_list):
+        '''
+            Account for the fact that ArcSDE Versioned items are organized at the
+            ArcSDE Feature Dataset level.  Unregister a Feature Dataset or a table/featureclass
+            that lives at the Root of ArcSDE.
+        '''
+        unregister_list = []
+        for item in versioned_list:
+
+            #If dirname_of_item == dbconn then the item is at root of SDE
+            #This will probably break if the sde file is not located in a two level folder structure
+            dirname_of_item = os.path.dirname(item)
+            if dirname_of_item == str(dbconn):
+                if item not in unregister_list:
+                    unregister_list.append(item)
+            else:
+                if os.path.dirname(item) not in unregister_list:
+                    unregister_list.append(os.path.dirname(item))
+
+        return unregister_list
+            
+
+
+    def control_flow(self, dbconn, unreg_tables_only, unreg_fcs_only):
         arcpy.env.workspace = dbconn
         total_list = []
         gdbbrowser = datastore.GDBBrowser(dbconn)

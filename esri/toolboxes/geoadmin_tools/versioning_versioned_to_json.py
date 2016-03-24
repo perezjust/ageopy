@@ -8,6 +8,7 @@ import ast
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 from esri import datastore
+from util import filesys
 '''
     I think the architecture to clean this mess up
     is to create a bonafide package and have it installed
@@ -15,10 +16,13 @@ from esri import datastore
 '''
 
 
-class VersioningHelperItemProperty(object):
+class VersioningVersionedToJSON(object):
     def __init__(self):
-        """Define the tool (tool name is the name of the class)."""
-        self.label = "Versioning Helper - Item Properties"
+        """
+            Catalogs which database items are versioned and writes
+            out to a json file the results.
+        """
+        self.label = "Versioning - Compile Versioned Items to JSON List"
         self.description = ""
         self.category="GeoAdmin Tools"
         self.canRunInBackground = False
@@ -34,14 +38,14 @@ class VersioningHelperItemProperty(object):
         direction="Input")
 
         param1 = arcpy.Parameter(
-        displayName="Check Datasets",
+        displayName="Check Tables",
         name="check_datasets",
         datatype="Boolean",
         parameterType="Optional",
         direction="Input")
 
         param2 = arcpy.Parameter(
-        displayName="Check Feature Classes At Root",
+        displayName="Check Feature Classes",
         name="check_fc_at_root",
         datatype="Boolean",
         parameterType="Optional",
@@ -61,7 +65,10 @@ class VersioningHelperItemProperty(object):
         parameterType="Derived",
         direction="Output")
 
-        params = [param0, param1, param2, param3, param4]
+        param1.value = True
+        param2.value = True
+        
+        params = [param0, param1, param2, param3]#, param4]
         return params
 
 
@@ -86,8 +93,7 @@ class VersioningHelperItemProperty(object):
 
     def execute(self, parameters, messages):
         """The source code of the tool."""
-        arcpy.AddMessage("here")
-        arcpy.AddMessage(parameters[0].valueAsText)
+
         res = self.run_tool(parameters[0].valueAsText, parameters[1].value, parameters[2].value, parameters[3].valueAsText)
         '''
             It seems that the SetParameterAsText method generates a arcpy.Result object.
@@ -95,7 +101,6 @@ class VersioningHelperItemProperty(object):
         '''
         #arcpy.SetParameterAsText(4, res)
         return
-
 
 
     def run_tool(self, dbconn, check_tables_only, check_fcs_only, output_folder):
@@ -110,8 +115,8 @@ class VersioningHelperItemProperty(object):
         ###--Add a check and a message back to user if they choose False, False
         
         versioned_dict = self.is_item_versioned(check_list)
-        #return versioned_list
-        output_json_file = os.path.join(output_folder, "json.txt")
+        
+        output_json_file = os.path.join(output_folder, "json_" + filesys.get_nice_date("Alt") + ".txt")
         if len(versioned_dict) > 0:
             json_data = json.dumps(versioned_dict)
             with open(output_json_file, 'w') as outfile:
@@ -120,8 +125,6 @@ class VersioningHelperItemProperty(object):
             return
         else:
             return []
-
-        
 
 
     def is_item_versioned(self, check_list):
