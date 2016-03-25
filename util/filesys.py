@@ -38,7 +38,6 @@ class AGEOSetUp(object):
 
 
 
-
 def manage_runtime_params(param1):
     """
         How do we find if our parameters are coming from arcmap

@@ -5,9 +5,11 @@ import sys
 import traceback
 from os.path import join
 
+#esri libs
 import arcpy
 import arceditor
 
+#local libs
 import dataelement
 
 

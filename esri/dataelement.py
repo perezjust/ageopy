@@ -6,9 +6,11 @@ import traceback
 from os.path import join
 from collections import defaultdict
 
+#esri libs
 import arcpy
 import arceditor
 
+#local libs
 import datastore
 
 

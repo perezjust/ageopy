@@ -4,9 +4,13 @@ import os
 import traceback
 import json
 import ast
+import webbrowser
 
+#local libs
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 from esri import datastore
+from esri import helpers
+from util import filesys
 '''
     I think the architecture to clean this mess up
     is to create a bonafide package and have it installed
@@ -34,35 +38,42 @@ class VersioningUnregisterItems(object):
         direction="Input")
 
         param1 = arcpy.Parameter(
+        displayName="Folder to Output Error File",
+        name="error_file_folder",
+        datatype="DEWorkspace",
+        parameterType="Required",
+        direction="Input")
+
+        param2 = arcpy.Parameter(
         displayName="Unregister Tables",
         name="unregister_tables",
         datatype="Boolean",
         parameterType="Optional",
         direction="Input")
 
-        param2 = arcpy.Parameter(
+        param3 = arcpy.Parameter(
         displayName="Unregister Feature Classes",
         name="unregister_fcs",
         datatype="Boolean",
         parameterType="Optional",
         direction="Input")
 
-        param3 = arcpy.Parameter(
+        param4 = arcpy.Parameter(
         displayName="JSON List To Unregister As Versioned",
         name="json_versioned_items",
         datatype="DETextfile",
         parameterType="Optional",
         direction="Input")
 
-        param4 = arcpy.Parameter(
+        param5 = arcpy.Parameter(
         displayName="No Output",
         name="output_list",
         datatype="String",
         parameterType="Derived",
         direction="Output")
 
-        param1.value = True
         param2.value = True
+        param3.value = True
 
         params = [param0, param1, param2, param3, param4]
         return params
@@ -92,7 +103,7 @@ class VersioningUnregisterItems(object):
     def execute(self, parameters, messages):
         """The source code of the tool."""
         
-        res = self.run_tool(parameters[0].valueAsText, parameters[1].value, parameters[2].value, parameters[3].valueAsText)
+        res = self.run_tool(parameters[0].valueAsText, parameters[1].valueAsText, parameters[2].value, parameters[3].value, parameters[4].valueAsText)
         '''
             It seems that the SetParameterAsText method generates a arcpy.Result object.
             I would like to instead return a json string...
@@ -102,31 +113,41 @@ class VersioningUnregisterItems(object):
 
 
 
-    def run_tool(self, dbconn, unreg_tables_only, unreg_fcs_only, json_versioned_items):
+    def run_tool(self, dbconn, errors_folder, unreg_tables_only, unreg_fcs_only, json_versioned_items):
         '''
-            Keeps execute method clean
+            Keeps execute method clean.
+
+            
         '''
-        if json_versioned_items == "":
+        arcpy.AddMessage(json_versioned_items)
+        arcpy.AddMessage("here")
+        if json_versioned_items is not None:
             with open(json_versioned_items) as readme:
                 d = json.loads(readme.read())
             raw_list = ast.literal_eval(d)
         else:
             raw_list = self.control_flow(dbconn, unreg_tables_only, unreg_fcs_only)
         unregister_list = self.organize_unregister_plan(dbconn, raw_list)
-        self.unregister_items(unregister_list)
+        gp_error_dict = self.unregister_items(unregister_list)
+        self.handle_gp_errors(gp_error_dict, errors_folder)
         return
 
 
+    def handle_gp_errors(self, gp_error_dict, error_folder):
+        error_file = gp_error_dict.write_to_disk(error_folder)
+        webbrowser.open(error_file)
+
+
     def unregister_items(self, unregister_list):
+        gp_error_dict = helpers.GPErrorDict()
         for i in unregister_list:
             try:
                 #Very important here to pass third parameter as "" empty
                 arcpy.UnregisterAsVersioned_management(i, "KEEP_EDIT", "")
                 arcpy.AddMessage("Unregistered -- " + str(i))
             except:
-                arcpy.AddMessage(i)
-                arcpy.AddMessage("--")
-                arcpy.AddMessage(traceback.format_exc())
+                gp_error_dict.add([traceback.format_exc(), i])
+        return gp_error_dict
 
         
 
@@ -167,53 +188,53 @@ class VersioningUnregisterItems(object):
         return total_list
 
 
-    def get_full_tablelist(self):
-        is_versioned = []
-        is_not_versioned = []
-        for i in arcpy.ListDatasets():
-            try:
-                datasetVersioned = arcpy.Describe(i).isVersioned
-                if datasetVersioned == False:
-                    is_not_versioned.append(i)
-                else:
-                    is_versioned.append(i)
-
-            except:
-                arcpy.AddMessage(traceback.format_exc())
-                print traceback.format_exc()
-        return is_versioned, is_not_versioned
-
-
-    def get_full_fclist(self):
-        is_versioned = []
-        is_not_versioned = []
-        for j in arcpy.ListTables():
-            try:
-                
-                tableVersioned = arcpy.Describe(j).isVersioned
-                if tableVersioned == False:
-                    is_not_versioned.append(j)
-                else:
-                    is_versioned.append(j)
-
-            except:
-                arcpy.AddMessage(traceback.format_exc())
-                print traceback.format_exc()
-                
-        for y in arcpy.ListFeatureClasses():
-            try:
-                
-                tableVersioned = arcpy.Describe(y).isVersioned
-                if tableVersioned == False:
-                    is_not_versioned.append(y)
-                else:
-                    is_versioned.append(y)
-
-            except:
-                arcpy.AddMessage(traceback.format_exc())
-                print traceback.format_exc()
-        
-        return is_versioned, is_not_versioned
+##    def get_full_tablelist(self):
+##        is_versioned = []
+##        is_not_versioned = []
+##        for i in arcpy.ListDatasets():
+##            try:
+##                datasetVersioned = arcpy.Describe(i).isVersioned
+##                if datasetVersioned == False:
+##                    is_not_versioned.append(i)
+##                else:
+##                    is_versioned.append(i)
+##
+##            except:
+##                arcpy.AddMessage(traceback.format_exc())
+##                print traceback.format_exc()
+##        return is_versioned, is_not_versioned
+##
+##
+##    def get_full_fclist(self):
+##        is_versioned = []
+##        is_not_versioned = []
+##        for j in arcpy.ListTables():
+##            try:
+##                
+##                tableVersioned = arcpy.Describe(j).isVersioned
+##                if tableVersioned == False:
+##                    is_not_versioned.append(j)
+##                else:
+##                    is_versioned.append(j)
+##
+##            except:
+##                arcpy.AddMessage(traceback.format_exc())
+##                print traceback.format_exc()
+##                
+##        for y in arcpy.ListFeatureClasses():
+##            try:
+##                
+##                tableVersioned = arcpy.Describe(y).isVersioned
+##                if tableVersioned == False:
+##                    is_not_versioned.append(y)
+##                else:
+##                    is_versioned.append(y)
+##
+##            except:
+##                arcpy.AddMessage(traceback.format_exc())
+##                print traceback.format_exc()
+##        
+##        return is_versioned, is_not_versioned
 
 
 
