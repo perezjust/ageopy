@@ -1,5 +1,11 @@
 import os
-import string, sys, shutil, logging, datetime, traceback
+import string
+import sys
+import shutil
+import logging
+import datetime
+import traceback
+from collections import defaultdict
 
 
 
@@ -79,9 +85,9 @@ def makeFile(arg1):
 
 
 def arcMessage(arg1):
-        arcpy.AddMessage(" ")
-        arcpy.AddMessage(arg1)
-        arcpy.AddMessage(" ")
+    arcpy.AddMessage(" ")
+    arcpy.AddMessage(arg1)
+    arcpy.AddMessage(" ")
 
 
 
@@ -141,6 +147,21 @@ def get_nice_date(alt=None):
         return dayValue
     else:
         return dayValueAlt
+
+
+
+def finder(filelist, search):
+    print "kpft rocks!"
+    mydict = defaultdict(list)
+    for i in filelist:
+        with open(i,'r') as f:
+            for line in f:
+                if line.find(search) <> -1:
+                #output = f.read()
+                #if output.find(search) <> -1:
+                    mydict[i] = line
+    return mydict
+
 
 
 
