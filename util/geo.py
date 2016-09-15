@@ -10,15 +10,15 @@ from collections import defaultdict
 import json
 from pprint import pprint
 
-data = r"\\boardwalk.corp\global\AppData\GIS\Cloud\Users\PerezJ\gh\data\tx_boat_ramps.json.txt"
+
 
 
 def main():
-    pprint(EsriJsonToLeafletJson(data))
+    v = "Is this by convention?"
 
 
-def EsriJsonToLeafletJson(src):
-    with open(data) as data_file:
+def EsriJsonToLeafletJson(src, shapetype, attributes=None):
+    with open(src) as data_file:
         geodata = json.load(data_file)
 
     leafjson = {}
@@ -26,39 +26,56 @@ def EsriJsonToLeafletJson(src):
     
     features = []
     counter = 1
-    for i in geodata["features"]:
-        src_geom = i["geometry"]
-        name = i["attributes"]["LocName"]
-        desc = i["attributes"]["GPS_PntTyp"]
-        if desc is None:
-            desc = "No Description"
-        if name is None:
-            name = "No Name"
-        '''
-            Build attributes
-        '''
-        new_prop = {}
-        new_prop["popupContent"] = str(name) + " - " + str(desc)
-        new_coords = []
-        new_geom = {}
-        new_geom["type"] = "Point"
-        #new_geom1["coordinates"] = [src_geom["x"], src_geom["y"]]
-        new_geom["coordinates"] = ["-95.92280555555556", "29.939716666666666"]
-        '''
-            Insert feature
-        '''
-        new_feat = {}
-        new_feat["geometry"] = new_geom
-        new_feat["type"] = "Feature"
-        new_feat["properties"] = new_prop
-        new_feat["id"] = counter
-        features.append(new_feat)
-        counter += 1
-
-    leafjson["features"] = features
     
+    for i in geodata["features"]:
+        if counter <> 0:
+            esri_json_geom = i["geometry"]
+            
+            new_prop = ESRIJsonAttributeHelper(attributes, i["attributes"])
+
+            new_geom = ESRIJsonGeomHelper(shapetype, esri_json_geom)
+
+            if len(new_geom) > 0:
+                new_feat = {}
+                new_feat["geometry"] = new_geom
+                new_feat["type"] = "Feature"
+                new_feat["properties"] = new_prop
+                new_feat["id"] = counter
+                features.append(new_feat)
+            counter += 1
+        
+    leafjson["features"] = features
     return json.dumps(leafjson)
 
+
+
+def ESRIJsonAttributeHelper(attribute_order, esri_json_attributes):
+    attrs = []
+    for i in attribute_order:
+        if esri_json_attributes[i] is not None:
+            attrs.append(esri_json_attributes[i])
+    return " - ".join(attrs)
+       
+
+
+def ESRIJsonGeomHelper(shapetype, esri_json_geom):
+    if shapetype == "Point":
+        new_geom = {}
+        new_geom["type"] = "Point"
+        new_geom["coordinates"] = [esri_json_geom["x"], esri_json_geom["y"]]
+        if esri_json_geom["x"] == "NaN" or esri_json_geom["y"] == "NaN":
+            new_geom = {}
+        return new_geom
+    elif shapetype == "Polyline":
+        new_geom = {}
+        new_geom["type"] = "LineString"
+        coordslist = []
+        for coords in esri_json_geom["paths"][0]:
+            coordslist.append(coords)
+        new_geom["coordinates"] = coordslist
+        return new_geom
+            
+        
 
 
 
