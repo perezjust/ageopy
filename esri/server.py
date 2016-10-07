@@ -92,31 +92,50 @@ class MapLayer():
         return pjson
 
 
-    def gulp_layer(self, chunk_size):
+    def gulp_layer(self, chunk_size=None, pause_time=None, output_location=None):
         '''
             Should gulp layer return a direct gulp of
             Server for ArcGIS or return a geojson object???
         '''
-        MapLayer._gulp_layer_manager(self, chunk_size)
-       
+        MapLayer._gulp_layer_manager(self, chunk_size, output_location)
 
-    def _gulp_layer_manager(self, chunk_size):
+
+    def _gulp_layer_manager(self, chunk_size=None, output_location=None):
+        if chunk_size is None:
+            chunk_size = 25
         oidlist = self.oids['objectIds']
         chunked_oids = []
         for i in range(0, len(oidlist), chunk_size):
             chunk = map(int, oidlist[i:i + chunk_size])
             chunked_oids.append(chunk)
-        MapLayer._gulp_layer_worker(self, chunked_oids)
+        MapLayer._gulp_layer_worker(self, chunked_oids, output_location)
 
 
-    def _gulp_layer_worker(self, workload):
-        for i in workload:
-            print i
-            time.sleep(30)
+    def _gulp_layer_worker(self, workload, output_location=None):
+        features = []
+        counter = 1
+        for oid_chunk in workload:
+            time.sleep(5)
+            data = {}
+            data['f'] = 'pjson'
+            data['outFields'] = '*'
+            data['Geometry'] = 'true'
+            data['outSR'] = '4326'
+            oidparam = ','.join(map(str, oid_chunk))
+            data['objectIds'] = oidparam
+            query_url = self.url + '/query?'
+            response = urllib.urlopen(query_url, urllib.urlencode(data))
+            pjson = json.loads(response.read())
+            #print pjson
+            MapLayer._write(self, pjson, output_location + "\\" + str(counter) + ".txt")
+            counter =+ 1
+        print features
 
 
-    def _to_json(self):
-        pass
+    def _write(self, result, src):
+        print result
+        with open(src, 'w') as data_file:
+            data_file.write(str(result))
 
 
 
