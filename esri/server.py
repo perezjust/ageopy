@@ -65,6 +65,15 @@ class MapLayer():
     '''
         Do I pass self as the first argument when calling a function
         directly off of a clas (ie DataStore._storetype(self)
+
+        Sample Call:
+            import sys
+            
+            sys.path.append(r"\\path\to\ageopy")
+            import ageopy.esri.server as ags
+            url = 'http://mycity.houstontx.gov/cohgis/rest/services/PD/Bikeways_wm/MapServer/1'
+            bikemap = ags.MapLayer(url)
+            bikemap.gulp_layer(output_location=r'C:\bikehou', chunk_size=100)
     '''
 
     def __init__(self, url):
@@ -108,12 +117,12 @@ class MapLayer():
         for i in range(0, len(oidlist), chunk_size):
             chunk = map(int, oidlist[i:i + chunk_size])
             chunked_oids.append(chunk)
-        MapLayer._gulp_layer_worker(self, chunked_oids, output_location)
+        result = MapLayer._gulp_layer_worker(self, chunked_oids, output_location)
 
 
     def _gulp_layer_worker(self, workload, output_location=None):
         features = []
-        counter = 1
+        counter = 0
         for oid_chunk in workload:
             time.sleep(5)
             data = {}
@@ -126,14 +135,12 @@ class MapLayer():
             query_url = self.url + '/query?'
             response = urllib.urlopen(query_url, urllib.urlencode(data))
             pjson = json.loads(response.read())
-            #print pjson
             MapLayer._write(self, pjson, output_location + "\\" + str(counter) + ".txt")
-            counter =+ 1
-        print features
+            counter += 1
+        return features
 
 
     def _write(self, result, src):
-        print result
         with open(src, 'w') as data_file:
             data_file.write(str(result))
 

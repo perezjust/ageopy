@@ -64,7 +64,7 @@ def get_calling_app():
 
 
 
-def build_walk_list(target_dir, search_filter):
+def build_walk_list(target_dir, search_filter=None):
     allfiles = []
  
     for root,dir,files in os.walk(target_dir):
