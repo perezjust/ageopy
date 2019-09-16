@@ -11,7 +11,7 @@ class GPErrorDict(object):
     
     def __init__(self):
         '''
-            group errors so they can be reported in organized way
+            Group errors so they can be reported in organized way
             useful when try/excepting through a geoprocessing operation
             against items
         '''
