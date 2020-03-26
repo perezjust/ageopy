@@ -128,14 +128,18 @@ class MapLayer():
             data = {}
             data['f'] = 'pjson'
             data['outFields'] = '*'
+            data['returnGeometry'] = 'true'
+            '''
+            This looks to not work at 10.7
             data['Geometry'] = 'true'
+            '''
             data['outSR'] = '4326'
             oidparam = ','.join(map(str, oid_chunk))
             data['objectIds'] = oidparam
             query_url = self.url + '/query?'
             response = urllib.urlopen(query_url, urllib.urlencode(data))
-            pjson = json.loads(response.read())
-            MapLayer._write(self, pjson, output_location + "\\" + str(counter) + ".txt")
+            pjson = response.read()
+            MapLayer._write(self, pjson, output_location + "\\" + str(counter) + ".json")
             counter += 1
         return features
 
