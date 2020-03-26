@@ -103,7 +103,7 @@ class MapLayer():
 
     def gulp_layer(self, chunk_size=None, pause_time=None, output_location=None):
         '''
-            Should gulp layer return a direct gulp of
+            Should gulp_layer return a direct gulp of
             Server for ArcGIS or return a geojson object???
         '''
         MapLayer._gulp_layer_manager(self, chunk_size, output_location)
